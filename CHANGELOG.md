@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.1 (2026-08-22)
+
+- Release workflow: create a GitHub release with generated notes (CHANGELOG section + commits),
+  `workflow_dispatch` to re-release an existing tag, npm publish skipped when the version is already published.
+- Fix file modes in the repository (only `bin/` script and `deploy.sh` executable).
+- README: drop the author-only "Deploy to a server" chapter.
+
 ## 1.0.0 (2026-08-22)
 
 - Initial release.
