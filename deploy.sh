@@ -11,7 +11,7 @@ set -euo pipefail
 # Optional env vars:
 #   REMOTE_DIR   (default: /usr/local/lib/node_modules/alexa-remote-mqtt)
 #   REMOTE_TMP   (default: /tmp)
-#   SERVICE      (default: alexa-remote-mqtt)  systemd unit to restart, if it exists
+#   SERVICE      (default: alexa-remote-mqtt@*)  systemd unit(s) to restart, if any exist
 #   SSH_KEY      (default: ~/.ssh/id_ed25519)  key loaded via keychain, if installed
 #   REMOTE_NODE_DIR  Node.js installation to use on the remote host (e.g. /opt/node22),
 #                    for hosts whose system Node is too old. Default: system node/npm.
@@ -20,7 +20,7 @@ set -euo pipefail
 REMOTE_HOST="${1:-mqtt-ifaces}"
 REMOTE_DIR="${REMOTE_DIR:-/usr/local/lib/node_modules/alexa-remote-mqtt}"
 REMOTE_TMP="${REMOTE_TMP:-/tmp}"
-SERVICE="${SERVICE:-alexa-remote-mqtt}"
+SERVICE="${SERVICE:-alexa-remote-mqtt@*}"
 REMOTE_NODE_DIR="${REMOTE_NODE_DIR:-}"
 SSH_KEY="${SSH_KEY:-$HOME/.ssh/id_ed25519}"
 
@@ -102,14 +102,19 @@ printf '#!/bin/sh\nexec "%s" "%s" "$@"\n' "$NODE_BIN" "$REMOTE_DIR/bin/alexa-rem
 sudo chmod +x /usr/local/bin/alexa-remote-mqtt
 sudo rm -f "$REMOTE_TGZ"
 
-if systemctl list-unit-files --type=service 2>/dev/null | grep -q "^${SERVICE}\.service"; then
-  echo "Restarting ${SERVICE}.service..."
-  sudo systemctl restart "$SERVICE"
+INSTANCES=$(systemctl list-units --type=service --all --no-legend "${SERVICE}.service" 2>/dev/null | awk '{print $1}' | sed 's/^●[[:space:]]*//')
+if [[ -n "$INSTANCES" ]]; then
+  for unit in $INSTANCES; do
+    echo "Restarting $unit..."
+    sudo systemctl restart "$unit"
+  done
   sleep 2
-  sudo systemctl --no-pager --lines=5 status "$SERVICE" || true
+  for unit in $INSTANCES; do
+    sudo systemctl --no-pager --lines=5 status "$unit" || true
+  done
 else
-  echo "Note: no systemd unit '${SERVICE}.service' found - not restarting anything."
-  echo "      Install one with: sudo alexa-remote-mqtt --install --mqtt-url mqtt://broker ..."
+  echo "Note: no systemd unit matching '${SERVICE}.service' found - not restarting anything."
+  echo "      Install one with: sudo alexa-remote-mqtt --install --name alexa --mqtt-url mqtt://broker ..."
 fi
 EOF
 

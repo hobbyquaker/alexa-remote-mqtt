@@ -1,79 +1,96 @@
 # alexa-remote-mqtt
 
 Node.js CLI that bridges Amazon Echo devices to MQTT, built on
-[alexa-remote2](https://www.npmjs.com/package/alexa-remote2).
-It is a lightweight replacement for a Node-RED flow using
+[alexa-remote2](https://www.npmjs.com/package/alexa-remote2) and
+[mqtt-interfaces-core](https://github.com/hobbyquaker/mqtt-interfaces-core).
+It follows the [mqtt-smarthome](https://github.com/mqtt-smarthome/mqtt-smarthome) convention and
+is a lightweight replacement for a Node-RED flow using
 [node-red-contrib-alexa-remote2-applestrudel](https://github.com/bbindreiter/node-red-contrib-alexa-remote2-applestrudel).
+
+> **Upgrading from 1.x?** Topics, payloads and the CLI changed — see
+> [Upgrading from 1.x](#upgrading-from-1x).
 
 ## Topics
 
-`<device>` is the name shown in the Alexa app (`/`, `+`, `#` replaced with `_`); the serial number
-works too. For commands, `all` addresses every music-capable device at once.
-Status topics are published **retained** unless noted otherwise.
+`alexa` is the instance name (`--name`, also the topic prefix). `<device>` is the name shown in
+the Alexa app (`/`, `+`, `#` replaced with `_`); the serial number works too, and for commands
+`all` addresses every music-capable device at once.
+
+Status payloads are `{"val": …, "ts": …, "lc": …}` JSON (`ts` = time published, `lc` = last
+change); `--no-json-payloads` publishes the plain value instead. They are retained unless noted.
+`set` payloads may be a plain value or `{"val": …}`.
+
+| Topic                            | Payload                                                                |
+| -------------------------------- | ---------------------------------------------------------------------- |
+| `alexa/connected`                | `0` offline (LWT), `1` MQTT only, `2` MQTT + Alexa                     |
+| `alexa/info`                     | JSON about the running instance, incl. `amazonPage`, `devices`, `push` |
+| `alexa/status/bridge/devices`    | list of devices (name, topic, serial, type, capabilities)              |
+| `alexa/status/bridge/routines`   | list of Alexa routines (after the first use of the `routine` command)  |
+| `alexa/maintenance/set/loglevel` | `error` / `warn` / `info` / `debug` at runtime (`--no-maintenance`)    |
+| `alexa/maintenance/set/restart`  | graceful restart (systemd starts the service again)                    |
 
 ### Status: `alexa/status/<device>/…`
 
-| Topic                      | Payload                                                                                                  |
-| -------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `audioPlayerState`         | `PLAYING`, `PAUSED`, `IDLE`, `INTERRUPTED`, `FINISHED`                                                   |
-| `volume`                   | `0`-`100`                                                                                                |
-| `isMuted`                  | `ON` / `OFF`                                                                                             |
-| `title`, `artist`, `album` | current track / station info (empty when idle)                                                           |
-| `provider`                 | source, e.g. `TuneIn`, `Spotify`, `Amazon Music`                                                         |
-| `imageUrl`                 | cover art URL                                                                                            |
-| `media`                    | JSON `{state,title,artist,album,provider,imageUrl,mediaId}`                                              |
-| `progress`                 | JSON `{progress,length}` in ms — **not retained**, max. every 10 s                                       |
-| `lastVoiceCommand`         | text spoken to this device (without wake word) — **not retained**, one message per utterance             |
-| `lastActivity`             | JSON `{text,response,utteranceType,timestamp}` of the last utterance                                     |
-| `notifications`            | JSON array of timers/alarms/reminders: `{id,type,status,label,time,triggerTime,remainingTime,recurring}` |
-| `dnd`                      | Do-Not-Disturb `true` / `false`                                                                          |
-| `bluetooth`                | JSON `{connected,name,address,paired:[{name,address,connected,profiles}]}`                               |
-| `equalizer`                | JSON `{bass,mid,treble}` (push only, after a change)                                                     |
-| `microphone`               | JSON with the raw microphone-state push payload                                                          |
-| `connected`                | device online `true` / `false`                                                                           |
-
-Bridge-level:
-
-| Topic                           | Payload                                                                |
-| ------------------------------- | ---------------------------------------------------------------------- |
-| `alexa/status/bridge/connected` | `0` offline, `1` MQTT only, `2` MQTT + Alexa (LWT)                     |
-| `alexa/status/bridge/devices`   | JSON list of devices (name, topic, serial, type, capabilities)         |
-| `alexa/status/bridge/routines`  | JSON list of Alexa routines (after first use of the `routine` command) |
+| Item                       | Value                                                                                                 |
+| -------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `player_state`             | `PLAYING`, `PAUSED`, `IDLE`, `INTERRUPTED`, `FINISHED`                                                |
+| `volume`                   | `0`-`100`                                                                                             |
+| `mute`                     | `true` / `false` (volume 0 counts as muted)                                                           |
+| `title`, `artist`, `album` | current track / station info (empty when idle)                                                        |
+| `provider`                 | source, e.g. `TuneIn`, `Spotify`, `Amazon Music`                                                      |
+| `image_url`                | cover art URL                                                                                         |
+| `media`                    | `{state, title, artist, album, provider, image_url, media_id}`                                        |
+| `progress`                 | `{progress, length}` in ms — **event, not retained**, at most every 10 s                              |
+| `last_voice_command`       | text spoken to this device (without wake word) — **event, not retained**                              |
+| `last_activity`            | `{text, response, utterance_type, timestamp}` of the last utterance                                   |
+| `notifications`            | timers/alarms/reminders: `[{id, type, status, label, time, trigger_time, remaining_time, recurring}]` |
+| `dnd`                      | Do-Not-Disturb `true` / `false`                                                                       |
+| `bluetooth`                | `{connected, name, address, paired: [{name, address, connected, profiles}]}`                          |
+| `equalizer`                | `{bass, mid, treble}` (push only, after a change)                                                     |
+| `microphone`               | raw microphone-state push payload                                                                     |
+| `connected`                | device online `true` / `false`                                                                        |
 
 ### Commands: `alexa/set/<device>/…`
 
-| Topic                               | Payload                                                                                 |
+| Item                                | Payload                                                                                 |
 | ----------------------------------- | --------------------------------------------------------------------------------------- |
-| `play`, `pause`, `next`, `previous` | any                                                                                     |
-| `shuffle`, `repeat`                 | `on` / `off`                                                                            |
+| `play`, `pause`, `next`, `previous` | any (may be empty)                                                                      |
+| `player_state`                      | `PLAYING` / `PAUSED` (or `play` / `pause`, `true` / `false`)                            |
+| `shuffle`, `repeat`                 | `true` / `false`                                                                        |
 | `volume`                            | `0`-`100`                                                                               |
-| `isMuted`                           | `ON` / `OFF` — implemented as volume 0 and restore (`mute` works as alias)              |
-| `playerState`                       | `PLAYING` / `PAUSED` (or `play` / `pause`)                                              |
+| `mute`                              | `true` / `false` — emulated as volume 0 and restore                                     |
 | `tunein`                            | TuneIn guide id, e.g. `s25111`, or `{"id":"p12345","type":"show"}`                      |
-| `textCommand`                       | text as if spoken to Alexa, e.g. `play SWR3`, `next track`, `set a timer for 5 minutes` |
+| `text_command`                      | text as if spoken to Alexa, e.g. `play SWR3`, `next track`, `set a timer for 5 minutes` |
 | `speak`                             | text-to-speech on the device                                                            |
 | `announcement`                      | announcement with chime; `alexa/set/all/announcement` plays on all devices in sync      |
 | `ssml`                              | SSML, must start with `<speak>`                                                         |
 | `sound`                             | Amazon sound id, e.g. `amzn_sfx_doorbell_chime_01`                                      |
 | `routine`                           | Alexa routine by name, trigger utterance or id                                          |
-| `dnd`                               | `on` / `off`                                                                            |
-| `bluetooth`                         | paired device name or address to connect, `off` to disconnect                           |
+| `dnd`                               | `true` / `false`                                                                        |
+| `bluetooth`                         | paired device name or address to connect, `false` to disconnect                         |
 | `equalizer`                         | `{"bass":2,"mid":0,"treble":-1}` or `2,0,-1` (range usually -6..6)                      |
 | `refresh`                           | re-poll all state of this device now                                                    |
 
-State updates arrive instantly via the Alexa push connection; additionally the full
-state is polled every `--poll-interval` seconds (default 300) to resynchronise.
+Aliases: `say` (`speak`), `announce` (`announcement`), `text` (`text_command`), `prev`
+(`previous`), `skip` (`next`), `do_not_disturb` (`dnd`). Text commands (`speak`, `announcement`,
+`ssml`, `text_command`, `routine`, `sound`) take the payload as it is, so `42` or `true` are said
+as written.
+
+State updates arrive instantly via the Alexa push connection; additionally the full state is
+polled every `--poll-interval` seconds (default 300) to resynchronise.
 
 ### Home Assistant
 
-With `--ha-discovery` the bridge publishes MQTT discovery configs so every Echo appears as a
-device in Home Assistant with sensors (state, title, artist, album, source, last voice command,
-bluetooth, timers), a volume slider, mute/DND switches, transport buttons and text inputs for
-text command / speak / announcement.
+MQTT discovery is **on by default** (`--no-ha-discovery` disables it and clears what was
+announced). Every music-capable Echo becomes one HA device linked to a bridge device, with
+sensors (player state, title, artist, album, source, last voice command, bluetooth, timers),
+a volume slider, mute/DND switches, transport buttons, a text entity for text commands and
+notify entities for speak/announcement. An Echo that Amazon reports as offline shows as
+unavailable on its own.
 
 ## Install & run
 
-Requires Node.js >= 20.
+Requires Node.js ^20.19, ^22.12 or >= 24.
 
 ```sh
 npm install -g alexa-remote-mqtt
@@ -97,10 +114,11 @@ Inside the container `--proxy-own-ip` defaults to `127.0.0.1`; open `http://<doc
 
 ### First start: login
 
-On the first start no Amazon login exists yet. alexa-remote-mqtt starts a local login proxy and prints
-a URL like `http://192.168.1.10:3001/`. Open it in a browser (on the same network), sign in
-with your Amazon account, and the login is stored in `~/.alexa-remote-mqtt/cookie.json`
-(override with `--cookie-file`). Subsequent starts reuse and auto-refresh it.
+On the first start no Amazon login exists yet. alexa-remote-mqtt starts a local login proxy and logs
+a URL like `http://192.168.1.10:3001/` (at `warn`, so it is visible at any log level). Open it in
+a browser (on the same network), sign in with your Amazon account, and the login is stored in
+`~/.alexa-remote-mqtt/cookie.json` (override with `--cookie-file`). Subsequent starts reuse and
+auto-refresh it.
 
 `--proxy-own-ip` must be the IP address (not hostname) under which you reach the machine
 running alexa-remote-mqtt; it defaults to the first non-internal IPv4 address.
@@ -113,37 +131,54 @@ actually routed to the process (e.g. WSL2 mirrored networking mode).
 ### Run as a systemd service
 
 ```sh
-sudo alexa-remote-mqtt --install --mqtt-url mqtt://broker --amazon-page amazon.de --proxy-own-ip 192.168.1.10
+sudo alexa-remote-mqtt --install --name alexa --mqtt-url mqtt://broker --amazon-page amazon.de --proxy-own-ip 192.168.1.10
 ```
 
-`--install` creates a system user `alexa-remote-mqtt`, writes the given options to `/etc/default/alexa-remote-mqtt`
-(`ALEXA_REMOTE_MQTT_*` variables — edit and `systemctl restart alexa-remote-mqtt` to change), installs
-`/etc/systemd/system/alexa-remote-mqtt.service`, and enables + starts it. An existing Amazon login
-(`--cookie-file` or the invoking user's `~/.alexa-remote-mqtt/cookie.json`) is copied to
-`/var/lib/alexa-remote-mqtt/cookie.json`; otherwise the service starts the login proxy — follow
-`journalctl -u alexa-remote-mqtt -f` for the URL. `sudo alexa-remote-mqtt --uninstall` removes the service again
-(keeps the login data).
+`--install` sets up the template service `alexa-remote-mqtt@<name>`, so a second Amazon account is
+just another instance (with its own `--proxy-port`):
+
+- `/etc/alexa-remote-mqtt/<name>.env` — the given options as `ALEXA_REMOTE_MQTT_*` variables;
+  edit and `systemctl restart alexa-remote-mqtt@<name>`.
+- `/etc/mqtt-interfaces/broker.env` — optional, shared by all mqtt-interfaces adapters
+  (`MQTT_URL`, `MQTT_USERNAME`, `MQTT_PASSWORD`).
+- `/var/lib/alexa-remote-mqtt/<name>/cookie.json` — the login. An existing one (`--cookie-file`,
+  the invoking user's `~/.alexa-remote-mqtt/cookie.json` or a 1.x service) is copied there;
+  otherwise the service starts the login proxy: `journalctl -u alexa-remote-mqtt@<name> -f`.
+
+`sudo alexa-remote-mqtt --uninstall --name <name>` removes the instance and keeps its login.
+
+Since the maintenance topics can restart the process and speak on your devices, restrict
+`alexa/maintenance/#` and `alexa/set/#` with a broker ACL if the broker is not on a trusted
+network — or run with `--no-maintenance`.
 
 ## Options
 
 ```
--u, --mqtt-url        MQTT broker URL                         [default: "mqtt://127.0.0.1"]
-    --mqtt-username   MQTT username
-    --mqtt-password   MQTT password
--t, --topic-prefix    MQTT topic prefix                       [default: "alexa"]
--a, --amazon-page     Amazon domain of your account           [default: "amazon.de"]
-    --alexa-service-host  Alexa API host                      [default: "layla.amazon.com"]
--c, --cookie-file     File to persist the Amazon login        [default: "~/.alexa-remote-mqtt/cookie.json"]
-    --proxy-own-ip    IP of this machine for the login proxy  [default: auto]
-    --proxy-port      Port of the login proxy                 [default: 3001]
--p, --poll-interval   Seconds between full state polls, 0 = push only  [default: 300]
-    --ha-discovery    Publish Home Assistant MQTT discovery configs
-    --ha-prefix       Home Assistant discovery prefix          [default: "homeassistant"]
--v, --verbose         Verbose logging
+-u, --mqtt-url               MQTT broker URL                       [default: "mqtt://localhost"]
+    --mqtt-username          MQTT username
+    --mqtt-password          MQTT password
+    --mqtt-client-id-prefix  Prefix for the MQTT client id
+    --mqtt-tls-ca            CA certificate file for mqtts://
+-n, --name                   Instance name, also the topic prefix          [default: "alexa"]
+-a, --amazon-page            Amazon domain of your account                 [default: "amazon.de"]
+    --alexa-service-host     Alexa API host                        [default: "layla.amazon.com"]
+-c, --cookie-file            File to persist the Amazon login
+                                              [default: "~/.alexa-remote-mqtt/cookie.json"]
+    --proxy-own-ip           IP of this machine for the login proxy        [default: auto]
+    --proxy-port             Port of the login proxy                       [default: 3001]
+-p, --poll-interval          Seconds between full state polls, 0 = push only  [default: 300]
+    --json-payloads          {val, ts, lc} status payloads   [default: true, --no-json-payloads]
+    --ha-discovery           Home Assistant MQTT discovery     [default: true, --no-ha-discovery]
+    --ha-prefix              Home Assistant discovery prefix    [default: "homeassistant"]
+    --maintenance            Accept maintenance topics         [default: true, --no-maintenance]
+-v, --verbosity              Log level: error, warn, info, debug           [default: "info"]
+    --install / --uninstall  Install/remove the systemd service alexa-remote-mqtt@<name>
+    --config-schema          Print the JSON Schema of all options and exit
 ```
 
-Every option can also be given as an environment variable with prefix `ALEXA_REMOTE_MQTT_`,
-e.g. `ALEXA_REMOTE_MQTT_MQTT_URL=mqtt://broker.local`.
+Every option can also be given as an environment variable with the prefix `ALEXA_REMOTE_MQTT_`,
+e.g. `ALEXA_REMOTE_MQTT_MQTT_URL=mqtt://broker.local`; the broker settings fall back to the
+unprefixed `MQTT_URL`, `MQTT_USERNAME`, `MQTT_PASSWORD`.
 
 ## Example
 
@@ -151,9 +186,48 @@ e.g. `ALEXA_REMOTE_MQTT_MQTT_URL=mqtt://broker.local`.
 mosquitto_sub -v -t 'alexa/#'
 mosquitto_pub -t 'alexa/set/Kitchen/pause' -m ''
 mosquitto_pub -t 'alexa/set/Kitchen/volume' -m 30
-mosquitto_pub -t 'alexa/set/Kitchen/textCommand' -m 'play SWR3'
+mosquitto_pub -t 'alexa/set/Kitchen/text_command' -m 'play SWR3'
 mosquitto_pub -t 'alexa/set/all/announcement' -m 'Dinner is ready'
 mosquitto_pub -t 'alexa/set/Kitchen/routine' -m 'Good night'
+```
+
+## Upgrading from 1.x
+
+2.0 moves the adapter onto mqtt-interfaces-core and the mqtt-smarthome 2.x spec. There are no
+compatibility shims — topics, payloads and options changed:
+
+| 1.x                                                           | 2.0                                                                   |
+| ------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `alexa/status/bridge/connected`                               | `alexa/connected`                                                     |
+| plain status payloads                                         | `{"val": …, "ts": …, "lc": …}` (`--no-json-payloads` for the old way) |
+| `audioPlayerState`, `playerState`                             | `player_state`                                                        |
+| `isMuted` (`ON`/`OFF`)                                        | `mute` (`true`/`false`)                                               |
+| `imageUrl`, `lastVoiceCommand`, `lastActivity`, `textCommand` | `image_url`, `last_voice_command`, `last_activity`, `text_command`    |
+| `ON`/`OFF` booleans                                           | `true`/`false` everywhere                                             |
+| `--topic-prefix` / `-t`                                       | `--name` / `-n` (same default `alexa`)                                |
+| `--verbose` / `-v`                                            | `--verbosity debug`                                                   |
+| `--ha-discovery` (off by default)                             | on by default, `--no-ha-discovery`                                    |
+| service `alexa-remote-mqtt`                                   | template service `alexa-remote-mqtt@<name>`                           |
+| `/etc/default/alexa-remote-mqtt`                              | `/etc/alexa-remote-mqtt/<name>.env`                                   |
+| `/var/lib/alexa-remote-mqtt/cookie.json`                      | `/var/lib/alexa-remote-mqtt/<name>/cookie.json`                       |
+
+New: `alexa/info`, the maintenance topics, `--config-schema`, typed environment variables with the
+shared `MQTT_*` fallback, per-device availability and a bridge device in Home Assistant.
+
+`sudo alexa-remote-mqtt --install --name alexa …` copies the login of the 1.x service and tells you
+how to remove the old unit:
+
+```sh
+sudo systemctl disable --now alexa-remote-mqtt
+sudo rm /etc/systemd/system/alexa-remote-mqtt.service /etc/default/alexa-remote-mqtt
+```
+
+The 1.x Home Assistant discovery used one config topic per entity; those retained messages are not
+cleared automatically. Remove them once with:
+
+```sh
+mosquitto_sub -v -t 'homeassistant/+/alexa-remote-mqtt_+/+/config' --retained-only -W 2 |
+  awk '{print $1}' | xargs -I{} mosquitto_pub -r -n -t {}
 ```
 
 ## Known upstream issue

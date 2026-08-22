@@ -10,8 +10,10 @@ COPY src/ ./src/
 
 ENV NODE_ENV=production \
     ALEXA_REMOTE_MQTT_MQTT_URL=mqtt://localhost \
+    ALEXA_REMOTE_MQTT_NAME=alexa \
     ALEXA_REMOTE_MQTT_COOKIE_FILE=/data/cookie.json \
-    ALEXA_REMOTE_MQTT_PROXY_OWN_IP=127.0.0.1
+    ALEXA_REMOTE_MQTT_PROXY_OWN_IP=127.0.0.1 \
+    ALEXA_REMOTE_MQTT_VERBOSITY=info
 
 RUN mkdir -p /data && chown node:node /data
 VOLUME /data
