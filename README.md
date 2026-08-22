@@ -110,17 +110,6 @@ browser can't reach. Pass `--proxy-own-ip 127.0.0.1` and open `http://127.0.0.1:
 host (WSL2 forwards localhost ports; for Docker publish port 3001), or use a host IP that is
 actually routed to the process (e.g. WSL2 mirrored networking mode).
 
-## Deploy to a server
-
-`deploy.sh` runs the tests, packs the module, copies it to a remote host and installs it to
-`/usr/local/lib/node_modules/alexa-remote-mqtt` (with `/usr/local/bin/alexa-remote-mqtt` symlink), then restarts
-the `alexa-remote-mqtt` systemd service if one exists:
-
-```sh
-bash deploy.sh                 # target: mqtt-ifaces
-bash deploy.sh user@otherhost  # override host
-```
-
 ### Run as a systemd service
 
 ```sh
