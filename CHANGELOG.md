@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.0.0 (2026-08-23)
+## 2.0.0 (2026-08-25)
 
 alexa-remote-mqtt now runs on [mqtt-interfaces-core](https://github.com/hobbyquaker/mqtt-interfaces-core)
 (mqtt-smarthome spec 2.x), like the other adapters of the fleet. This is a hard break: topics,

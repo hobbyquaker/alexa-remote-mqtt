@@ -7,8 +7,8 @@
     "start": "node bin/alexa-remote-mqtt.js",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write . && eslint --fix .",
-    "test": "node --test \"test/**/*.test.js\"",
-    "test:watch": "node --test --watch \"test/**/*.test.js\""
+    "test": "node --test test/",
+    "test:watch": "node --test --watch test/"
   },
   "keywords": [
     "alexa",

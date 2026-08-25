@@ -9,12 +9,12 @@ the [master roadmap](https://github.com/hobbyquaker/mqtt-interfaces/blob/main/RO
 **A-n**; open questions continue the fleet numbering at **OQ-40+**.
 
 This file is the implementation spec: everything needed to do the change is decided here; what
-still has to land in the core first is listed in §1.2 (core 0.3.0). **Status 2026-08-23:
-implemented** — core 0.3.0 (G-1, G-2, G-3) is committed in the core repo and has to be published to
-npm before this repo's release workflow can build (`package.json` requires
-`mqtt-interfaces-core ^0.3.0`). Open: OQ-40 decided as (a) (notify entities for
-speak/announcement), OQ-41/OQ-42 unchanged; §8's manual smoke test against the real account is
-still pending.
+still has to land in the core first is listed in §1.2 (core 0.3.0). **Status 2026-08-25: implemented,
+release pending** — core 0.3.0 (G-1, G-2, G-3) is on npm, §§1-7 are done, `npm run lint` and
+`npm test` are green. OQ-40 is decided as (a) and implemented (notify entities for
+speak/announcement), OQ-42 is closed (template unit + per-instance `--proxy-port`, documented in
+the README, no code), OQ-41 stays open with the fleet. Left to do: §8's manual smoke test against
+the real account, then §9 (tag `v2.0.0`) and the master roadmap inventory.
 
 Contents: 1 core fit & gaps · 2 decisions · 3 topics (migration table) · 4 CLI/env · 5 Home
 Assistant discovery · 6 systemd/Docker · 7 implementation steps · 8 tests · 9 release · 10 open
