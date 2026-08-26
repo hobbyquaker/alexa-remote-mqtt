@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.1 (2026-08-26)
+
+### Fixed
+
+- `npm test` failed on Node 21+ (`node --test test/` treats the directory as a glob that
+  matches the directory itself), which broke CI and the 2.0.0 release: 2.0.0 never reached npm.
+  `npm test` now uses the runner's default discovery, which finds the same files on every
+  supported Node version.
+
 ## 2.0.0 (2026-08-25)
 
 alexa-remote-mqtt now runs on [mqtt-interfaces-core](https://github.com/hobbyquaker/mqtt-interfaces-core)

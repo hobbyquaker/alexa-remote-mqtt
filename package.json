@@ -1,14 +1,14 @@
 {
   "name": "alexa-remote-mqtt",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Bridge between Amazon Echo devices and MQTT",
   "main": "src/bridge.js",
   "scripts": {
     "start": "node bin/alexa-remote-mqtt.js",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write . && eslint --fix .",
-    "test": "node --test test/",
-    "test:watch": "node --test --watch test/"
+    "test": "node --test",
+    "test:watch": "node --test --watch"
   },
   "keywords": [
     "alexa",
