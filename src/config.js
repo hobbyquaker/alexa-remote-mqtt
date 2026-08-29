@@ -38,6 +38,8 @@ export const OPTIONS = {
     type: 'string',
     describe: 'file the amazon login is persisted in',
     default: DEFAULT_COOKIE_FILE,
+    // a credential written by the login proxy: management UIs show the path, nobody edits it
+    file: { format: 'binary', describe: 'the Amazon login (written by the one-time login proxy)' },
   },
   'proxy-own-ip': {
     type: 'string',

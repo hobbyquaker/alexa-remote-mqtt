@@ -8,6 +8,13 @@ payloads, CLI options and the systemd service changed, there are no compatibilit
 See "Upgrading from 1.x" in the README for the full migration table and the one-off cleanup of the
 1.x Home Assistant discovery topics.
 
+### Changed
+
+- mqtt-interfaces-core 0.6.0: `--config-schema` marks `--mqtt-password` as secret and declares
+  `--cookie-file` as a file (`x-file`, binary — shown, not edited); `package.json` carries the
+  `mqttInterfaces` field (`needs: network-host` for the login proxy) so she's Services page can
+  describe the adapter. she lists adapters by their dependency on the core — no keyword needed.
+
 ### Breaking
 
 - `alexa/status/bridge/connected` is now `alexa/connected` (same 0/1/2 semantics, LWT).

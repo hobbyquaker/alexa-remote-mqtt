@@ -330,7 +330,8 @@ examples})`; `localIp()` moves here. Export `config`.
 
 ## 9. Release
 
-1. core 0.3.0 (G-1, G-2[, G-3]) tagged + on npm.
+1. ~~core 0.3.0 (G-1, G-2[, G-3]) tagged + on npm.~~ done; the repo now tracks core 0.6.0
+   (`x-secret`, `x-file`, `mqttInterfaces`).
 2. This repo: implement §7, `npm run lint`, `npm test`, smoke test §8.
 3. `package.json` `2.0.0`, CHANGELOG `## 2.0.0 (YYYY-MM-DD)`, commit, tag `v2.0.0`, push tag →
    npm + ghcr + GitHub release (existing workflow).
