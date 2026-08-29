@@ -1,6 +1,6 @@
 {
   "name": "alexa-remote-mqtt",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Bridge between Amazon Echo devices and MQTT",
   "main": "src/bridge.js",
   "scripts": {
@@ -52,7 +52,8 @@
     "spec": "2.0",
     "envPrefix": "ALEXA_REMOTE_MQTT",
     "needs": [
-      "network-host"
+      "network",
+      "cloud"
     ],
     "serviceExtra": []
   },
